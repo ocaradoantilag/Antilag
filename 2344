@@ -66,32 +66,48 @@ local function holdMouse1(state)
     end
 end
 
+-- Redimensiona a cabeça com proteção contra resets
 local function ResizeHead(player)
-    if player and player ~= Players.LocalPlayer and player.Character then
-        local head = player.Character:FindFirstChild("Head")
-        local humanoid = player.Character:FindFirstChild("Humanoid")
-        if head and humanoid then
+    task.spawn(function()
+        while player and player.Character == nil do task.wait() end
+        local char = player.Character
+        if not char then return end
+
+        local head = char:WaitForChild("Head", 5)
+        local hum = char:FindFirstChild("Humanoid")
+
+        if head and hum then
             head.Massless = true
             head.Transparency = 0.1
             head.Size = Vector3.new(Settings.Size, Settings.Size, Settings.Size)
             head.CanCollide = false
+
+            -- Mantém o tamanho da cabeça a cada 1 segundo
+            while player and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") do
+                head.Size = Vector3.new(Settings.Size, Settings.Size, Settings.Size)
+                task.wait(1)
+            end
         end
+    end)
+end
+
+-- Aplica nos jogadores existentes
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= Players.LocalPlayer then
+        ResizeHead(player)
     end
 end
 
---// Aplicar redimensionamento nos jogadores atuais
-for _, player in pairs(Players:GetPlayers()) do
-    ResizeHead(player)
-end
-
---// Aplicar em jogadores que entrarem
+-- Aplica em novos jogadores que entrarem
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function()
-        ResizeHead(player)
+        if player ~= Players.LocalPlayer then
+            ResizeHead(player)
+        end
     end)
 end)
 
---// Loop Principal
+-- Loop principal
 RunService.RenderStepped:Connect(function()
     updateDrawings()
     local closestPlayer = getClosestPlayerInFOV()
@@ -103,7 +119,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// Hook para munição infinita
+-- Hook para munição infinita
 local old
 old = hookmetamethod(game, "__index", function(this, index)
     if not checkcaller() and tostring(this) == "CurrentAmmo" and index == "Value" then
